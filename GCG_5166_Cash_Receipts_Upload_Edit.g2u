@@ -1,0 +1,496 @@
+Program.Sub.ScreenSU.Start
+Gui.Form..Create
+Gui.Form..Size(19560,8040)
+Gui.Form..MinX(0)
+Gui.Form..MinY(0)
+Gui.Form..Position(0,0)
+Gui.Form..BackColor(-2147483633)
+Gui.Form..MousePointer(0)
+Gui.Form..Event(UnLoad,Form_UnLoad)
+Gui.Form..Caption("Cash Receipts Upload")
+Gui.Form.GsGrid.Create(GsGridControl)
+Gui.Form.GsGrid.Size(19350,6975)
+Gui.Form.GsGrid.Position(-15,45)
+Gui.Form.cmdCreateBatch.Create(Button)
+Gui.Form.cmdCreateBatch.Size(2145,375)
+Gui.Form.cmdCreateBatch.Position(12180,7110)
+Gui.Form.cmdCreateBatch.Caption("Create Batch")
+Gui.Form.cmdCreateBatch.Event(Click,cmdCreateBatch_Click)
+Gui.Form.cmdRefresh.Create(Button)
+Gui.Form.cmdRefresh.Size(2145,375)
+Gui.Form.cmdRefresh.Position(9930,7110)
+Gui.Form.cmdRefresh.Caption("Refresh ")
+Gui.Form.cmdRefresh.Event(Click,cmdRefresh_Click)
+Gui.FormMismatchedRecords..Create
+Gui.FormMismatchedRecords..Caption("Mismatched Records")
+Gui.FormMismatchedRecords..Size(5715,2550)
+Gui.FormMismatchedRecords..MinX(0)
+Gui.FormMismatchedRecords..MinY(0)
+Gui.FormMismatchedRecords..Position(0,0)
+Gui.FormMismatchedRecords..AlwaysOnTop(True)
+Gui.FormMismatchedRecords..BackColor(-2147483633)
+Gui.FormMismatchedRecords..MaxButton(False)
+Gui.FormMismatchedRecords..MinButton(False)
+Gui.FormMismatchedRecords..MousePointer(0)
+Gui.FormMismatchedRecords..Sizeable(False)
+Gui.FormMismatchedRecords..Event(UnLoad,FormMismatchedRecords_UnLoad)
+Gui.FormMismatchedRecords.TextBoxMessage.Create(TextboxM)
+Gui.FormMismatchedRecords.TextBoxMessage.Size(5220,1560)
+Gui.FormMismatchedRecords.TextBoxMessage.Position(165,105)
+Gui.FormMismatchedRecords.ButtonUploadAll.Create(Button)
+Gui.FormMismatchedRecords.ButtonUploadAll.Size(1380,375)
+Gui.FormMismatchedRecords.ButtonUploadAll.Position(165,1785)
+Gui.FormMismatchedRecords.ButtonUploadAll.Caption("Upload All")
+Gui.FormMismatchedRecords.ButtonUploadAll.Event(Click,ButtonUploadAll_Click)
+Gui.FormMismatchedRecords.ButtonUploadMatches.Create(Button)
+Gui.FormMismatchedRecords.ButtonUploadMatches.Size(1380,375)
+Gui.FormMismatchedRecords.ButtonUploadMatches.Position(2100,1785)
+Gui.FormMismatchedRecords.ButtonUploadMatches.Caption("Upload Matches")
+Gui.FormMismatchedRecords.ButtonUploadMatches.Event(Click,ButtonUploadMatches_Click)
+Gui.FormMismatchedRecords.ButtonCancel.Create(Button)
+Gui.FormMismatchedRecords.ButtonCancel.Size(1380,375)
+Gui.FormMismatchedRecords.ButtonCancel.Position(4020,1785)
+Gui.FormMismatchedRecords.ButtonCancel.Caption("Cancel")
+Gui.FormMismatchedRecords.ButtonCancel.Event(Click,ButtonCancel_Click)
+Program.Sub.ScreenSU.End
+
+Program.Sub.Preflight.Start
+V.Global.sFile.Declare(String)
+V.Global.sRet.Declare(String)
+V.Global.iChoice.Declare(Long)
+Program.Sub.Preflight.End
+
+Program.Sub.Main.Start
+F.Intrinsic.Control.SetErrorHandler("Main_Err")
+F.Intrinsic.Control.ClearErrors
+V.Local.sError.Declare(String)
+
+'GCG_5166_Cash_Receipts_Upload_Edit.g2u
+'Modified 08/23/18 by Trey S for Jeff Perrigo at Western Container Corporation
+'From GCG_5101_Cash_Receipts_Upload.g2u
+'Using Invoice date and amount from GS instead of from file
+'Adding a total text box for the applied amount column
+'Allowing user to edit discount amount on the screen
+'Custom Menu item Accounts Receivable > Transactions > Cash Receipts Upload (5166)
+
+'	Fields in following order 
+'		Customer name (not required but will display in the upload GAB screen)
+'		Customer number (*required)
+'		Check No (*required)
+'		Check Total (not required)
+'		Invoice No (*required)
+'		Invoice Amount (not required, will use amount from GS)
+'		Applied Amount (*required and should be in ##.00 format)
+'		Discount Amount (*required and should be in ##.00 format)
+'		Invoice Date (not required, will use date from GS)
+
+'modified 05/11/18 - BS - for Morgan Li to support applied amount and discount 
+'CSV file saved without column header
+
+'Use GL Account: defaults to AR cash account in options based on switch /C for program AR044GAB
+'Post Date: Current Date
+'Customer Account must be set up. Company Options> Accounts Receivable Table Maintenance> Account Maintenance- Customer Deposit
+
+F.ODBC.Connection!conG.OpenConnection(v.Ambient.PDSN,v.Ambient.PUser,v.Ambient.PPass)
+Function.Intrinsic.Control.CallSub(select_file)
+Function.Intrinsic.Control.CallSub(format_table)
+
+GUI.Form..Show
+GUI.Form..AlwaysOnTop(True)
+GUI.Form..AlwaysOnTop(False)
+
+F.Intrinsic.Control.ExitSub
+F.Intrinsic.Control.Label("Main_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: GCG_4502_Cash_Receipts_Upload.g2u",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	Function.Intrinsic.Control.CallSub(form_unload)
+Function.Intrinsic.Control.EndIf
+Program.Sub.Main.End
+
+Program.Sub.Select_File.Start
+F.Intrinsic.Control.SetErrorHandler("Select_File_Err")
+F.Intrinsic.Control.ClearErrors
+V.Local.sError.Declare(String)
+
+F.Intrinsic.UI.ShowOpenFileDialog("","","",V.Global.sRet)
+' if cancelled, end script, otherwise continue....
+F.Intrinsic.Control.If(V.Global.sRet,=,"***CANCEL***")
+	F.Intrinsic.Control.CallSub(form_unload)
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.ExitSub
+F.Intrinsic.Control.Label("Select_File_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: GCG_4502_Cash_Receipts_Upload.g2u",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	Function.Intrinsic.Control.CallSub(form_unload)
+Function.Intrinsic.Control.EndIf
+Program.Sub.Select_File.End
+
+Program.Sub.Format_Table.Start
+F.Intrinsic.Control.SetErrorHandler("Format_Table_Err")
+F.Intrinsic.Control.ClearErrors
+V.Local.sError.Declare(String)
+
+'drop columns populate Y?N allow edits
+V.Local..BulkDeclareString(sSQL, sRet, sExp)
+'convert file
+Function.Intrinsic.File.File2String(V.Global.sRet, V.Global.sFile)
+'create datatable
+F.Data.DataTable.CreateFromString("AR", V.Global.sFile,"Customer_Name*!*Customer_Number*!*Check_Number*!*Check_Total*!*Invoice_Number*!*Invoice_Amount*!*Applied_Amount*!*Discount_Amount*!*DateString", "String*!*String*!*String*!*String*!*String*!*String*!*String*!*String*!*String",",", V.Ambient.NewLine, TRUE)
+
+'Get the amounts and dates for the invoices
+V.Local.sSQL.Set("select RTRIM(AMT_INVOICE) as AMT_INVOICE, RTRIM(INVOICE) as INVOICE from AR_OPEN_ITEMS where BATCH_CODE = '10'")
+F.Data.DataTable.CreateFromSQL("Amounts", "conG", V.Local.sSQL)
+
+V.Local.sSQL.Set("select RTRIM(INVOICE) as INVOICE, RTRIM(DATE_INVOICE) as DATE_INVOICE from AR_OPEN_ITEMS where BATCH_CODE = '10'")
+F.Data.Dictionary.CreateFromSQL("Dates", "conG", V.Local.sSQL)
+F.Data.Dictionary.SetDefaultReturn("Dates", "")
+
+'this is for populating the match column
+V.Local.sSQL.Set("select RTRIM(INVOICE) as INVOICE, 'Y' from AR_OPEN_ITEMS where BATCH_CODE = '10'")
+F.Data.Dictionary.CreateFromSQL("Invoices", "conG", V.Local.sSQL)
+F.Data.Dictionary.SetDefaultReturn("Invoices", "N")
+
+F.Data.DataTable.AddColumn("AR", "Match", "String")
+
+V.Local.iCounter.Declare(Long)
+V.Local.sInvoice.Declare(String)
+V.Local.sNewValue.Declare(String)
+V.Local.fDiscount.Declare
+V.Local.sDiscount.Declare(String)
+V.Local.sFilter.Declare(String)
+V.Local.sIndex.Declare(String)
+V.Local.fNewValue.Declare
+V.Local.fAppliedAmount.Declare
+
+F.Intrinsic.Control.For(V.Local.iCounter, 0, V.DataTable.AR.RowCount--, 1)
+	V.Local.fNewValue.Set(0)
+	V.Local.fAppliedAmount.Set(0)
+	V.Local.sDiscount.Set(0)
+	V.Local.sInvoice.Set(V.DataTable.AR(V.Local.iCounter).INVOICE_NUMBER!FieldValTrim)
+	F.Intrinsic.String.Build("Invoice = '{0}'", V.Local.sInvoice, V.Local.sFilter)
+	F.Data.DataTable.Select("Amounts", V.Local.sFilter, V.Local.sIndex)
+	F.Intrinsic.Control.If(V.Local.sIndex, =, "***NORETURN***")
+		V.Local.sNewValue.Set("")
+		V.Local.sDiscount.Set("")
+	F.Intrinsic.Control.Else
+		V.Local.sNewValue.Set(V.DataTable.Amounts(V.Local.sIndex).Amt_Invoice!FieldValTrim)
+		V.Local.fNewValue.Set(V.DataTable.Amounts(V.Local.sIndex).Amt_Invoice!FieldValFloat)
+		V.Local.fAppliedAmount.Set(V.DataTable.AR(V.Local.iCounter).Applied_Amount!FieldValFloat)
+		F.Intrinsic.Math.Sub(V.Local.fNewValue, V.Local.fAppliedAmount, V.Local.fDiscount)
+		F.Intrinsic.Math.Round(V.Local.fDiscount, 2, V.Local.fDiscount)
+		V.Local.sDiscount.Set(V.Local.fDiscount)
+			
+	F.Intrinsic.Control.EndIf
+	
+	F.Data.DataTable.SetValue("AR", V.Local.iCounter, "Invoice_Amount", V.Local.sNewValue)
+	F.Data.DataTable.SetValue("AR", V.Local.iCounter, "Discount_Amount", V.Local.sDiscount)
+	F.Data.DataTable.SetValue("AR", V.Local.iCounter, "DateString", V.Local.sInvoice)
+	F.Data.DataTable.SetValue("AR", V.Local.iCounter, "Match", V.Local.sInvoice)
+	'Function.Intrinsic.Debug.Stop
+	
+F.Intrinsic.Control.Next(V.Local.iCounter)
+
+F.Data.DataTable.FillFromDictionary("AR", "Dates", "DateString")
+F.Data.DataTable.FillFromDictionary("AR", "Invoices", "Match")
+F.Data.DataTable.AddExpressionColumn("AR", "Invoice_Date", "String", "SUBSTRING(DateString, 1, 2)+'/'+SUBSTRING(DateString, 3, 2)+'/'+SUBSTRING(DateString, 5, 2)")
+
+'Filter out extra lines or not set invoices
+'Using AR_Y so that this will be used to create the batch, AR_Y is used there
+F.Data.DataView.Create("AR", "AR_Y")
+F.Data.DataView.SetFilter("AR", "AR_Y", "Invoice_Number <> ''")
+
+F.Data.DataTable.Close("Amounts")
+F.Data.Dictionary.Close("Dates")
+F.Data.Dictionary.Close("Invoices")
+
+'Gui.Form.GsGrid.AddGridViewFromDatatable( "Grid", "AR")
+GUI.Form.GsGrid.AddGridviewFromDataview("Grid", "AR", "AR_Y")
+
+Gui.Form.GsGrid.SetGridViewProperty("Grid", "Enableappearanceoddrow", True)
+
+Gui.Form.GsGrid.SetColumnProperty("Grid", "Customer_Name", "Caption", "Customer Name")
+Gui.Form.GsGrid.SetColumnProperty("Grid", "Customer_Number", "Caption", "Customer #")
+Gui.Form.GsGrid.SetColumnProperty("Grid", "Check_Number", "Caption", "Check #")
+Gui.Form.GsGrid.SetColumnProperty("Grid", "Check_Total", "Caption", "Check Total")
+Gui.Form.GsGrid.SetColumnProperty("Grid", "Invoice_Number", "Caption", "Invoice #")
+Gui.Form.GsGrid.SetColumnProperty("Grid", "Invoice_Amount", "Caption", "Invoice Amount")
+Gui.Form.GsGrid.SetColumnProperty("Grid", "Applied_Amount", "Caption", "Applied Amount")
+Gui.Form.GsGrid.SetColumnProperty("Grid", "Discount_Amount", "Caption", "Discount")
+Gui.Form.GsGrid.SetColumnProperty("Grid", "Invoice_Date", "Caption", "Invoice Date")
+
+Gui.Form.GsGrid.SetColumnProperty("Grid", "Customer_Name", "HeaderFontBold", True)
+Gui.Form.GsGrid.SetColumnProperty("Grid", "Customer_Number", "HeaderFontBold", True)
+Gui.Form.GsGrid.SetColumnProperty("Grid", "Check_Number", "HeaderFontBold", True)
+Gui.Form.GsGrid.SetColumnProperty("Grid", "Check_Total", "HeaderFontBold", True)
+Gui.Form.GsGrid.SetColumnProperty("Grid", "Invoice_Number", "HeaderFontBold", True)
+Gui.Form.GsGrid.SetColumnProperty("Grid", "Invoice_Amount", "HeaderFontBold", True)
+Gui.Form.GsGrid.SetColumnProperty("Grid", "Applied_Amount", "HeaderFontBold", True)
+Gui.Form.GsGrid.SetColumnProperty("Grid", "Discount_Amount", "HeaderFontBold", True)
+Gui.Form.GsGrid.SetColumnProperty("Grid", "Invoice_Date", "HeaderFontBold", True)
+Gui.Form.GsGrid.SetColumnProperty("Grid", "Match", "HeaderFontBold", True)
+
+Gui.Form.GsGrid.SetColumnProperty("Grid", "Customer_Name", "AllowEdit", FALSE)
+Gui.Form.GsGrid.SetColumnProperty("Grid", "Customer_Name", "ReadOnly", TRUE)
+Gui.Form.GsGrid.SetColumnProperty("Grid", "Customer_Number", "AllowEdit", FALSE)
+Gui.Form.GsGrid.SetColumnProperty("Grid", "Customer_Number", "ReadOnly", TRUE)
+Gui.Form.GsGrid.SetColumnProperty("Grid", "Check_Number", "AllowEdit", FALSE)
+Gui.Form.GsGrid.SetColumnProperty("Grid", "Check_Number", "ReadOnly", TRUE)
+Gui.Form.GsGrid.SetColumnProperty("Grid", "Check_Total", "AllowEdit", FALSE)
+Gui.Form.GsGrid.SetColumnProperty("Grid", "Check_Total", "ReadOnly", TRUE)
+Gui.Form.GsGrid.SetColumnProperty("Grid", "Invoice_Number", "AllowEdit", FALSE)
+Gui.Form.GsGrid.SetColumnProperty("Grid", "Invoice_Number", "ReadOnly", TRUE)
+Gui.Form.GsGrid.SetColumnProperty("Grid", "Invoice_Amount", "AllowEdit", FALSE)
+Gui.Form.GsGrid.SetColumnProperty("Grid", "Invoice_Amount", "ReadOnly", TRUE)
+Gui.Form.GsGrid.SetColumnProperty("Grid", "Applied_Amount", "AllowEdit", FALSE)
+Gui.Form.GsGrid.SetColumnProperty("Grid", "Applied_Amount", "ReadOnly", TRUE)
+Gui.Form.GsGrid.SetColumnProperty("Grid", "Discount_Amount", "AllowEdit", True)
+Gui.Form.GsGrid.SetColumnProperty("Grid", "Discount_Amount", "ReadOnly", False)
+Gui.Form.GsGrid.SetColumnProperty("Grid", "Invoice_Date", "AllowEdit", FALSE)
+Gui.Form.GsGrid.SetColumnProperty("Grid", "Invoice_Date", "ReadOnly", TRUE)
+Gui.Form.GsGrid.SetColumnProperty("Grid", "Match", "AllowEdit", FALSE)
+Gui.Form.GsGrid.SetColumnProperty("Grid", "Match", "ReadOnly", TRUE)
+
+Gui.Form.GsGrid.SetColumnProperty("Grid", "Customer_Name", "CellHAlignment", "Center")
+Gui.Form.GsGrid.SetColumnProperty("Grid", "Customer_Name", "HeaderHAlignment", "Center")
+Gui.Form.GsGrid.SetColumnProperty("Grid", "Customer_Number", "CellHAlignment", "Center")
+Gui.Form.GsGrid.SetColumnProperty("Grid", "Check_Number", "HeaderHAlignment", "Center")
+Gui.Form.GsGrid.SetColumnProperty("Grid", "Check_Number", "CellHAlignment", "Center")
+Gui.Form.GsGrid.SetColumnProperty("Grid", "Customer_Number", "HeaderHAlignment", "Center")
+Gui.Form.GsGrid.SetColumnProperty("Grid", "Check_Total", "CellHAlignment", "Far")
+Gui.Form.GsGrid.SetColumnProperty("Grid", "Check_Total", "HeaderHAlignment", "Center")
+Gui.Form.GsGrid.SetColumnProperty("Grid", "Invoice_Number", "CellHAlignment", "Center")
+Gui.Form.GsGrid.SetColumnProperty("Grid", "Invoice_Number", "HeaderHAlignment", "Center")
+Gui.Form.GsGrid.SetColumnProperty("Grid", "Invoice_Amount", "CellHAlignment", "Far")
+Gui.Form.GsGrid.SetColumnProperty("Grid", "Invoice_Amount", "HeaderHAlignment", "Center")
+Gui.Form.GsGrid.SetColumnProperty("Grid", "Applied_Amount", "CellHAlignment", "Far")
+Gui.Form.GsGrid.SetColumnProperty("Grid", "Applied_Amount", "HeaderHAlignment", "Center")
+Gui.Form.GsGrid.SetColumnProperty("Grid", "Discount_Amount", "CellHAlignment", "Far")
+Gui.Form.GsGrid.SetColumnProperty("Grid", "Discount_Amount", "HeaderHAlignment", "Center")
+Gui.Form.GsGrid.SetColumnProperty("Grid", "Invoice_Date", "CellHAlignment", "Center")
+Gui.Form.GsGrid.SetColumnProperty("Grid", "Invoice_Date", "HeaderHAlignment", "Center")
+Gui.Form.GsGrid.SetColumnProperty("Grid", "Match", "CellHAlignment", "Center")
+Gui.Form.GsGrid.SetColumnProperty("Grid", "Match", "HeaderHAlignment", "Center")
+
+Gui.Form.GsGrid.SetColumnProperty("Grid", "Customer_Name", "MinWidth", "120")
+Gui.Form.GsGrid.SetColumnProperty("Grid", "Customer_Number", "MinWidth", "50")
+Gui.Form.GsGrid.SetColumnProperty("Grid", "Check_Number", "MinWidth", "50")
+Gui.Form.GsGrid.SetColumnProperty("Grid", "Check_Total", "MinWidth", "50")
+Gui.Form.GsGrid.SetColumnProperty("Grid", "Invoice_Number", "MinWidth", "50")
+Gui.Form.GsGrid.SetColumnProperty("Grid", "Invoice_Amount", "MinWidth", "50")
+Gui.Form.GsGrid.SetColumnProperty("Grid", "Applied_Amount", "MinWidth", "50")
+Gui.Form.GsGrid.SetColumnProperty("Grid", "Discount_Amount", "MinWidth", "50")
+Gui.Form.GsGrid.SetColumnProperty("Grid", "Invoice_Date", "MinWidth", "50")
+Gui.Form.GsGrid.SetColumnProperty("Grid", "Match", "MinWidth", "50")
+
+Gui.Form.GsGrid.SetColumnProperty("Grid", "Discount_Amount", "EditMaskType", "numeric")
+Gui.Form.GsGrid.SetColumnProperty("Grid", "Discount_Amount", "EditMask", "#########.00")
+GUI.Form.GsGrid.SetColumnProperty("Grid", "Discount_Amount", "EditMaskAsDisplayFormat", True)
+
+'GUI.Form.GsGrid.SetColumnProperty("Grid", "Invoice_Date", "VisibleIndex", 5)
+Gui.Form.GsGrid.SetColumnProperty("Grid", "DateString", "Visible", FALSE)
+
+GUI.Form.cmdCreateBatch.Anchor(2)
+GUI.Form.cmdRefresh.Anchor(2)
+GUI.Form.GsGrid.Anchor(15)
+
+GUI.Form.GsGrid.MainView("Grid")
+
+GUI.Form.GsGrid.AddSummaryItem("Grid", "Applied_Amount", "TotalApplied", "Sum", "Total: ", "", "c2")
+GUI.Form.GsGrid.AddSummaryItem("Grid", "Discount_Amount", "TotalDiscount", "Sum", "Total: ", "", "c2")
+
+F.Intrinsic.Control.ExitSub
+F.Intrinsic.Control.Label("Format_Table_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: GCG_4502_Cash_Receipts_Upload.g2u",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	Function.Intrinsic.Control.CallSub(form_unload)
+Function.Intrinsic.Control.EndIf
+Program.Sub.Format_Table.End
+
+Program.Sub.cmdCreateBatch_Click.Start
+F.Intrinsic.Control.SetErrorHandler("cmdCreateBatch_Click_Err")
+F.Intrinsic.Control.ClearErrors
+V.Local.sError.Declare(String)
+
+V.Local..BulkDeclareString(sTemp, sText, sParam)
+V.Local.sFile.Declare(String)
+V.Local.bExists.Declare(Boolean)
+V.Local.iC.Declare(Long)
+GUI.FormMismatchedRecords.TextBoxMessage.Locked(True)
+'check for any 'N'
+V.Local.sMismatch.Declare(String, "There are unmatched Records. If you choose to upload matches, a text file with the unmatched records will be created.")
+V.Local.sMismatch.Append(V.Ambient.NewLine)
+V.Local.sMismatch.Append(V.Ambient.NewLine)
+Function.Data.DataView.Create("AR", "AR_N", 22, "[Match] = 'N' and Invoice_Number <> ''", "")
+Function.Intrinsic.Control.If(V.DataView.AR!AR_N.RowCount, >, 0)
+	'Build message
+	V.Local.iCounter.Declare(Long)
+	F.Intrinsic.Control.For(V.Local.iCounter, 0, V.DataView.AR!AR_N.RowCount--, 1)
+		F.Intrinsic.String.Build("{0}Invoice: {1}, Cust: {2}, Amount To Apply: {3}{4}", V.Local.sMismatch, V.DataView.AR!AR_N(V.Local.iCounter).Invoice_Number!FieldValTrim, V.DataView.AR!AR_N(V.Local.iCounter).Customer_Name!FieldValTrim, V.DataView.AR!AR_N(V.Local.iCounter).Applied_Amount!FieldValTrim, V.Ambient.NewLine, V.Local.sMismatch)
+	F.Intrinsic.Control.Next(V.Local.iCounter)
+	GUI.FormMismatchedRecords.TextBoxMessage.Text(V.Local.sMismatch)
+	'display form
+	GUI.FormMismatchedRecords..Show
+	GUI.FormMismatchedRecords..WaitForDismiss
+	F.Intrinsic.Control.SelectCase(V.Global.iChoice)
+		F.Intrinsic.Control.Case(0)
+			'Continue
+		F.Intrinsic.Control.Case(1)
+			'Filter the dataview
+			F.Data.DataView.SetFilter("AR", "AR_Y", "[Match] = 'Y'")
+			V.Local.sMismatch.Set("Unmatched Records:")
+			V.Local.sMismatch.Append(V.Ambient.NewLine)
+			F.Intrinsic.Control.For(V.Local.iCounter, 0, V.DataView.AR!AR_N.RowCount--, 1)
+				F.Intrinsic.String.Build("{0}Invoice: {1}, Cust: {2}, Cust Number: {4}, Check Number: {5}, Check Total: {6}, Amount To Apply: {3}{7}", V.Local.sMismatch, V.DataView.AR!AR_N(V.Local.iCounter).Invoice_Number!FieldValTrim, V.DataView.AR!AR_N(V.Local.iCounter).Customer_Name!FieldValTrim, V.DataView.AR!AR_N(V.Local.iCounter).Applied_Amount!FieldValTrim, V.DataView.AR!AR_N(V.Local.iCounter).Customer_Number!FieldValTrim, V.DataView.AR!AR_N(V.Local.iCounter).Check_Number!FieldValTrim, V.DataView.AR!AR_N(V.Local.iCounter).Check_Total!FieldValTrim, V.Ambient.NewLine, V.Local.sMismatch)
+			F.Intrinsic.Control.Next(V.Local.iCounter)
+			
+			V.Local.sPath.Declare(String)
+			V.Local.iHandle.Declare(Long)
+			F.Intrinsic.UI.ShowSaveFileDialog("Unmatched Records", "txt|*.txt", "", V.Local.sPath)
+			
+			F.Intrinsic.Control.If(V.Local.sPath, =, "***CANCEL***")
+				V.Local.sPath.Set("Unmatched Records.txt")
+			F.Intrinsic.Control.EndIf
+			F.Intrinsic.File.String2File(V.Local.sPath, V.Local.sMismatch)
+			F.Intrinsic.File.GetHandle(V.Local.iHandle)
+			
+			F.Intrinsic.Task.ShellExec(V.Local.iHandle, "OPEN", V.Local.sPath, "", V.Local.sPath, "")
+			
+		F.Intrinsic.Control.Case(2)
+			F.Data.DataView.Close("AR", "AR_N")
+			F.Intrinsic.Control.ExitSub
+	F.Intrinsic.Control.EndSelect
+	
+Function.Intrinsic.Control.EndIf
+GUI.Form..Visible(False)
+
+'create file, loop
+F.Intrinsic.Control.For(V.Local.iC, 0,V.DataView.AR!AR_Y.RowCount--, 1)
+	F.Intrinsic.String.RPad(V.Local.sTemp," ",52,V.Local.sTemp)
+	F.Intrinsic.String.Concat(V.Local.sText,V.Local.sTemp,V.Local.sText)
+	V.Local.sTemp.Set("")
+	F.Intrinsic.String.RPad(V.DataView.AR!AR_Y(V.Local.iC).Customer_Number!FieldVal," ",7,V.Local.sTemp)
+	F.Intrinsic.String.Concat(V.Local.sText,V.Local.sTemp,V.Local.sText)
+	V.Local.sTemp.Set("")
+	F.Intrinsic.String.LPad(V.DataView.AR!AR_Y(V.Local.iC).Invoice_Number!FieldVal," ",7,V.Local.sTemp)
+	F.Intrinsic.String.Concat(V.Local.sText,V.Local.sTemp,V.Local.sText)
+	F.Intrinsic.String.Concat(V.Local.sText,"  ",V.Local.sText)
+	
+	F.Intrinsic.Control.If(V.DataView.AR!AR_Y(V.Local.iC).DateString!FieldValTrim, =, "")
+		F.Intrinsic.String.Concat(V.Local.sText, "      ", V.Local.sText)
+	F.Intrinsic.Control.Else
+		F.Intrinsic.String.Concat(V.Local.sText,V.DataView.AR!AR_Y(V.Local.iC).DateString!FieldValTrim,V.Local.sText)
+	F.Intrinsic.Control.EndIf
+	
+	V.Local.sTemp.Set("")
+	F.Intrinsic.String.Format(V.Ambient.Date,"YYMMDD",V.Local.sTemp)
+	F.Intrinsic.String.Concat(V.Local.sText,V.Local.sTemp,V.Local.sText)
+	V.Local.sTemp.Set("")
+	F.Intrinsic.String.RPad(V.Local.sTemp," ",19,V.Local.sTemp)
+	F.Intrinsic.String.Concat(V.Local.sText,V.Local.sTemp,V.Local.sText)
+	V.Local.sTemp.Set("")
+
+	F.Intrinsic.String.RPad(V.DataView.AR!AR_Y(V.Local.iC).Applied_Amount!FieldVal," ",19,V.Local.sTemp)
+	F.Intrinsic.String.Concat(V.Local.sText,V.Local.sTemp,V.Local.sText)
+	V.Local.sTemp.Set("")
+	F.Intrinsic.String.RPad(V.DataView.AR!AR_Y(V.Local.iC).Check_Number!FieldVal," ",15,V.Local.sTemp)
+	F.Intrinsic.String.Concat(V.Local.sText,V.Local.sTemp,V.Local.sText)
+	
+	' padd to position 253 for discount amount
+	V.Local.sTemp.Set("")	
+	F.Intrinsic.String.RPad(V.Local.sTemp," ",119,V.Local.sTemp)
+	F.Intrinsic.String.Concat(V.Local.sText,V.Local.sTemp,V.Local.sText)	
+	F.Intrinsic.String.RPad(V.DataView.AR!AR_Y(V.Local.iC).Discount_Amount!FieldVal," ",16,V.Local.sTemp)
+	F.Intrinsic.String.Concat(V.Local.sText,V.Local.sTemp,V.Local.sText)
+	V.Local.sTemp.Set("")
+	F.Intrinsic.String.RPad(V.Local.sTemp," ",221,V.Local.sTemp)
+	F.Intrinsic.String.Concat(V.Local.sText,V.Local.sTemp,V.Local.sText)
+		
+	F.Intrinsic.String.Build("{0}{1}", V.Local.sText, V.Ambient.NewLine, V.Local.sText)
+F.Intrinsic.Control.Next(V.Local.iC)
+
+F.Intrinsic.String.Concat(V.Caller.FilesDir,"\EA820",V.Caller.CompanyCode,V.Local.sFile)
+F.Intrinsic.File.Exists(V.Local.sFile,V.Local.bExists)
+F.Intrinsic.Control.If(V.Local.bExists,=,True)
+	F.Intrinsic.File.DeleteFile(V.Local.sFile)
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.File.String2File(V.Local.sFile,V.Local.sText)
+
+'upload
+Function.Intrinsic.Control.If(V.Local.sText, <>, "")
+	F.Intrinsic.String.Build("{0}!*!{1}", V.Caller.CompanyCode, "AR044GAB/C", V.Local.sParam)
+	'F.Intrinsic.String.Concat(V.Caller.CompanyCode,V.Caller.Terminal,V.Local.sParam)
+	'F.Intrinsic.Task.LaunchGSSSync("AR044GAB/C","-C",V.Local.sParam)
+	F.Global.General.CallWrapperSync(51, V.Local.sParam)
+	F.Intrinsic.UI.Msgbox("Batch Uploaded")
+Function.Intrinsic.Control.EndIf
+
+Function.Intrinsic.Control.CallSub(form_unload)
+
+F.Intrinsic.Control.ExitSub
+F.Intrinsic.Control.Label("cmdCreateBatch_Click_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: GCG_4502_Cash_Receipts_Upload.g2u",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	Function.Intrinsic.Control.CallSub(form_unload)
+Function.Intrinsic.Control.EndIf
+Program.Sub.cmdCreateBatch_Click.End
+
+Program.Sub.cmdRefresh_Click.Start
+F.Intrinsic.Control.SetErrorHandler("cmdRefresh_Click_Err")
+F.Intrinsic.Control.ClearErrors
+V.Local.sError.Declare(String)
+
+F.Data.DataTable.Close("AR")
+Function.Intrinsic.Control.CallSub(format_table)
+
+F.Intrinsic.Control.ExitSub
+F.Intrinsic.Control.Label("cmdRefresh_Click_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: GCG_4502_Cash_Receipts_Upload.g2u",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	Function.Intrinsic.Control.CallSub(form_unload)
+Function.Intrinsic.Control.EndIf
+Program.Sub.cmdRefresh_Click.End
+
+Program.Sub.Form_UnLoad.Start
+F.Intrinsic.Control.SetErrorHandler("Form_UnLoad_Err")
+F.Intrinsic.Control.ClearErrors
+V.Local.sError.Declare(String)
+
+F.ODBC.Connection!conG.Close
+F.Intrinsic.Control.End
+
+F.Intrinsic.Control.ExitSub
+F.Intrinsic.Control.Label("Form_UnLoad_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: GCG_4502_Cash_Receipts_Upload.g2u",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	Function.Intrinsic.Control.End
+
+Function.Intrinsic.Control.EndIf
+Program.Sub.Form_UnLoad.End
+
+Program.Sub.ButtonUploadAll_Click.Start
+V.Global.iChoice.Set(0)
+GUI.FormMismatchedRecords..Visible(False)
+Program.Sub.ButtonUploadAll_Click.End
+
+Program.Sub.ButtonUploadMatches_Click.Start
+V.Global.iChoice.Set(1)
+GUI.FormMismatchedRecords..Visible(False)
+Program.Sub.ButtonUploadMatches_Click.End
+
+Program.Sub.ButtonCancel_Click.Start
+V.Global.iChoice.Set(2)
+GUI.FormMismatchedRecords..Visible(False)
+Program.Sub.ButtonCancel_Click.End
+
+Program.Sub.FormMismatchedRecords_UnLoad.Start
+V.Global.iChoice.Set(2)
+GUI.FormMismatchedRecords..Visible(False)
+Program.Sub.FormMismatchedRecords_UnLoad.End
